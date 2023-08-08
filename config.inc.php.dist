@@ -1,0 +1,10 @@
+<?php
+
+// importaddressbook plugin configuration
+
+// Id of the addressbook where contacts will be imported
+$config['importaddressbook']['target_book'] = 'global';
+
+// Id of the addressbook where contacts will be imported
+$config['importaddressbook']['replace'] = true;
+

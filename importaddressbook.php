@@ -19,19 +19,15 @@ class importaddressbook extends rcube_plugin
     private static $lock_file;
 
     function init()
-    { 
-        // Initialize plugin_path variable      
+    {
+        // Initialize plugin_path variable
         $this->plugin_path = INSTALL_PATH . $this->url('');
 
         // Initialize the lock file path
-        $this->lock_file = $this->plugin_path . '/importaddressbook.lock';
-        
+        $this->lock_file = $this->plugin_path . 'importaddressbook.lock';
+
         // Get Roundcube instance
         $this->rcmail = rcmail::get_instance();
-
-        // Load configuration
-        // $this->load_config();
-        $this->config = $this->rcmail->config->get('importaddressbook');
 
         // trigger on a post-connect hook with addressbook access
         //
@@ -102,7 +98,7 @@ class importaddressbook extends rcube_plugin
             // Export contacts to vCards, and merge
             $vcards = array_merge($vcards, $converter->export());
         }
-            
+
         error_log('[importaddressbook] Made '. count($vcards) . ' vCards from the provided files !');
         return $vcards;
     }
@@ -110,12 +106,12 @@ class importaddressbook extends rcube_plugin
     /**
      * Import vCards into Adressbook
      * Partial code of 'run' function, copied from 'rcmail_action_contacts_import' class
-     * 
+     *
      * @param string $target
      * @param bool $replace
-     * @param bool $with_groups 
-     * @param array $vcards 
-     * 
+     * @param bool $with_groups
+     * @param array $vcards
+     *
      * @return stdClass (insertions: int $success, int $failed)
      */
     private function rcmail_action_contacts_import_run_vcards($target, $replace, $with_groups, $vcards)
@@ -131,7 +127,7 @@ class importaddressbook extends rcube_plugin
             true // $writeable  True if the address book needs to be writeable
         );
 
-        if (!$CONTACTS->groups) { 
+        if (!$CONTACTS->groups) {
             $with_groups = false;
         }
 
@@ -234,10 +230,10 @@ class importaddressbook extends rcube_plugin
 
         // Attempt to obtain an exclusive lock
         if (flock($lock_handle, LOCK_EX))
-        {    
+        {
             // Define which extensions are valid
             $file_extensions = array('csv');
-    
+
             // Get all matching files
             $files = $this->getImportFiles($file_extensions);
 
@@ -245,15 +241,15 @@ class importaddressbook extends rcube_plugin
             {
                 // Extract vCards (users) from these files
                 $vcards = $this->getVCardsFromFiles($files);
-        
+                
                 // Import these vCards/users
                 $result = $this->rcmail_action_contacts_import_run_vcards(
-                    $this->config['target_book'],
-                    $this->config['replace'],
-                    true, // $with_groups
+                    'global', //targetbook  // TODO add to a configuration file and load dynamically !
+                    true, //replace         // TODO add to a configuration file and load dynamically !
+                    true, // $with_groups   // TODO add to a configuration file and load dynamically !
                     $vcards
                 );
-        
+
                 // Delete files
                 foreach ($files as $path) { unlink($path); }
 
@@ -267,10 +263,10 @@ class importaddressbook extends rcube_plugin
 
             // Release the lock
             flock($lock_handle, LOCK_UN);
-    
+
             // Close the lock file handle
             fclose($lock_handle);
-    
+
             // return $args;
         }
         else
@@ -279,81 +275,4 @@ class importaddressbook extends rcube_plugin
             return $args;
         }
     }
-
-    // function old_importaddressbook_on_startup($args)
-    // {
-    //     // Get Roundcube instance
-    //     $rcmail = rcmail::get_instance();
-
-    //     // Get the current page URL
-    //     $current_url = $rcmail->url('');
-    //     error_log($current_url); // TODO REMOVE
-
-    //     //
-    //     $this->load_config();
-    //     $config = $rcmail->config->get('importaddressbook');
-    //     error_log(json_encode($config)); // TODO REMOVE
-
-    //     // Get the target address book from the config file
-    //     $target_book = $config['target_book'];
-    //     error_log($target_book); // TODO REMOVE
-
-    //     // Get the list of CSV and VCF files to import
-    //     $file_extensions = $config['file_extensions'];
-    //     error_log(json_encode($file_extensions)); // TODO REMOVE
-
-    //     $plugin_path = INSTALL_PATH . $this->url('');
-    //     error_log('Searching for files to import inside directory ' . $plugin_path);
-
-    //     $imported_files = array();
-    //     foreach ($file_extensions as $extension) {
-    //         $pattern = sprintf('%s/*.%s', $plugin_path, $extension);
-    //         $files = glob($pattern);
-    //         if ($files !== false) {
-    //             $imported_files = array_merge($imported_files, $files);
-    //         }
-    //     }
-
-    //     error_log('Found ' . count($imported_files) . ' files to import : ' . json_encode($imported_files));
-
-    //     // Import contacts from each file
-    //     foreach ($imported_files as $path)
-    //     {
-    //         $file_parts = pathinfo($path);
-    //         $file_type = strtolower($file_parts['extension']);
-    //         if ($file_type == 'csv' || $file_type == 'vcf')
-    //         {
-    //             // Set the correct MIME type for CSV or VCF file
-    //             $mime_type = ($file_type == 'csv') 
-    //                 ? 'text/csv'
-    //                 : 'text/x-vcard';
-
-    //             // Set the required variables for file upload
-    //             $_FILES['_file'] = array(
-    //                 'name' => basename($path),
-    //                 'type' => $mime_type, 
-    //                 'tmp_name' => $path,
-    //                 'error' => 0,
-    //                 'size' => filesize($path)
-    //             );
-    //             $_POST['_target'] = $target_book;
-
-    //             // Instanciate import class
-    //             // $rcimport = new rcmail_action_contacts_import_custom;
-    //             $rcimport = new rcmail_action_contacts_import;
-
-    //             // Run the main import function
-    //             $rcimport->run();
-
-    //             // Delete the imported file
-    //             unlink($path);
-    //         }
-    //     }
-
-    //     // Redirect the user back to the original page
-    //     // $rcmail->output->command('redirect', $current_url);
-    //     header('Location: ./?_task=mail&_mbox=INBOX');
-
-    //     // return $args;
-    // }
 }

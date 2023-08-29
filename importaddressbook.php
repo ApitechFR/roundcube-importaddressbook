@@ -48,6 +48,9 @@ class importaddressbook extends rcube_plugin
                 $p['admin'] = true;
             }
 
+            // Update user data
+            $this->update_identities($userinfo);
+
             return $p;
         });
 
@@ -59,7 +62,10 @@ class importaddressbook extends rcube_plugin
         // ready => OK but runs multiple times per refesh/actions
         // startup => OK but runs multiple times per refesh/actions
         //
-        $this->add_hook('ready', array($this, 'importaddressbook_on_hook'));
+        $this->add_hook('ready', array($this, 'import_addressbook_on_hook'));
+
+        // $this->add_hook('user_create', array($this, 'update_identities_on_hook'));
+        // $this->add_hook('login_after', array($this, 'update_identities_on_hook'));
     }
 
     /**
@@ -262,10 +268,11 @@ class importaddressbook extends rcube_plugin
         {
             // // utils
             // $oauth = new rcmail_oauth();
+            $user = new stdClass;
     
             // prepare return data
-            $user = new stdClass;
             $user->username = null;
+            $user->displayname = null;
             $user->admin = false;
     
             // token
@@ -277,6 +284,7 @@ class importaddressbook extends rcube_plugin
                 // get values from config
                 $options = [];
                 //
+                $options['display_fields'] = $this->rcmail->config->get('oauth_display_fields', ['name']);
                 $options['identity_fields'] = $this->rcmail->config->get('oauth_identity_fields', ['email']);
                 $options['client_id'] = $this->rcmail->config->get('oauth_client_id', ['roundcube']);
                 //
@@ -293,15 +301,26 @@ class importaddressbook extends rcube_plugin
                 // decode JWT
                 list($headb64, $bodyb64, $cryptob64) = explode('.', strtr($access_token, '-_', '+/'));
                 $header = json_decode(base64_decode($headb64), true);
-                $identity   = json_decode(base64_decode($bodyb64), true); // $body
-    
+                $body   = json_decode(base64_decode($bodyb64), true); // $body
+
                 // get user identifier (username, email)
                 foreach ($options['identity_fields'] as $field)
                 {
-                    if (isset($identity[$field]))
+                    if (isset($body[$field]))
                     {
-                        error_log('[importaddressbook] User is '. $identity[$field] .'!');
-                        $user->username = $identity[$field];
+                        error_log('[importaddressbook] Username is '. $body[$field] .'!');
+                        $user->username = $body[$field];
+                        break;
+                    }
+                }
+    
+                // get user display name (username, email)
+                foreach ($options['display_fields'] as $field)
+                {
+                    if (isset($body[$field]))
+                    {
+                        error_log('[importaddressbook] Displayname is '. $body[$field] .'!');
+                        $user->displayname = $body[$field];
                         break;
                     }
                 }
@@ -309,7 +328,7 @@ class importaddressbook extends rcube_plugin
                 // get searched value from roles
                 // TODO improve to handle multiple values and dynamic retrieval
                 // @see oidc-keycloak-custom.php for Wordpress - https://github.com/TBG-FR/oidc-keycloak-sso
-                $resource_access = $identity['resource_access'];
+                $resource_access = $body['resource_access'];
                 if(isset($resource_access))
                 {
                     // error_log(json_encode($resource_access));
@@ -324,7 +343,7 @@ class importaddressbook extends rcube_plugin
                         {
                             // error_log(json_encode($roles));
 
-                            if (in_array("admin", $roles))
+                            if(in_array("admin", $roles))
                             {
                                 error_log('[importaddressbook] User has admin role !');
                                 $user->admin = true;
@@ -343,7 +362,7 @@ class importaddressbook extends rcube_plugin
         return $user;
     }
 
-    function importaddressbook_on_hook($args)
+    function import_addressbook_on_hook($args)
     {
         // Which addressbook should we use
         // TODO add to a configuration file and load dynamically !
@@ -408,6 +427,29 @@ class importaddressbook extends rcube_plugin
             {
                 error_log('[importaddressbook] Import is already running !');
                 return $args;
+            }
+        }
+    }
+
+    function update_identities($userinfo)
+    {
+        // Get user identities
+        $rc_identities = $this->rcmail->user->list_identities();
+
+        foreach ($rc_identities as $rc_i)
+        {
+            if($rc_i['email'] == $userinfo->username)
+            {
+                if(empty($rc_i['name']) || $rc_i['name'] != $userinfo->displayname)
+                {                    
+                    // identity values to update
+                    $rc_u = [];
+                    $rc_u['name'] = $userinfo->displayname;
+
+                    // Update the entry
+                    error_log('[importaddressbook] Updating user identity to add display name !');
+                    $this->rcmail->user->update_identity($rc_i['identity_id'], $rc_u);
+                }
             }
         }
     }

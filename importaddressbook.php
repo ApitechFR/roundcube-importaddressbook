@@ -382,6 +382,9 @@ class importaddressbook extends rcube_plugin
             // Attempt to obtain an exclusive lock
             if (flock($lock_handle, LOCK_EX))
             {
+		// Delete all existing contacts (and groups through true param) from adress book before import 
+		$addressbook->delete_all(true);
+		
                 // Define which extensions are valid
                 $file_extensions = array('csv');
     

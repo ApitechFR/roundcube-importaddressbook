@@ -382,9 +382,6 @@ class importaddressbook extends rcube_plugin
             // Attempt to obtain an exclusive lock
             if (flock($lock_handle, LOCK_EX))
             {
-		// Delete all existing contacts (and groups through true param) from adress book before import 
-		$addressbook->delete_all(true);
-		
                 // Define which extensions are valid
                 $file_extensions = array('csv');
     
@@ -393,7 +390,13 @@ class importaddressbook extends rcube_plugin
     
                 if(count($files) > 0)
                 {
-                    // Extract vCards (users) from these files
+		    // Delete all existing contacts (and groups through true param) from adress book before import 
+		    $addressbook->delete_all(true);
+		    error_log("##########################");
+		    error_log("deleting existing contacts");
+		    error_log("##########################");
+                    
+		    // Extract vCards (users) from these files
                     $vcards = $this->getVCardsFromFiles($files);
                     
                     // Import these vCards/users

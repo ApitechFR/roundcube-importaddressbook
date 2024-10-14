@@ -390,7 +390,16 @@ class importaddressbook extends rcube_plugin
     
                 if(count($files) > 0)
                 {
-                    // Extract vCards (users) from these files
+		    // Delete all existing contacts (and groups through true param) from adress book before import
+		    error_log("##########################");
+		    error_log("deleting existing contacts...");
+		    error_log("##########################");
+		    $addressbook->delete_all(true);
+	            error_log("##########################");
+		    error_log("contacts deleted successfully !");
+		    error_log("##########################");
+                    
+		    // Extract vCards (users) from these files
                     $vcards = $this->getVCardsFromFiles($files);
                     
                     // Import these vCards/users
